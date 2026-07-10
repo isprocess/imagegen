@@ -79,3 +79,33 @@ fn release_workflow_triggers_on_version_tags_not_version_branches() {
         "release workflow should only trigger automatically for v* tags"
     );
 }
+
+#[test]
+fn release_workflow_builds_static_linux_and_publishes_direct_assets() {
+    let workflow = include_str!("../.github/workflows/build.yml");
+    assert!(workflow.contains("target: x86_64-unknown-linux-musl"));
+    assert!(!workflow.contains("target: x86_64-unknown-linux-gnu"));
+    assert!(workflow.contains("sudo apt-get install --yes musl-tools"));
+    assert!(workflow.contains("Requesting program interpreter"));
+
+    let (_, release) = workflow
+        .split_once("\n  release:\n")
+        .expect("release workflow should define a release job");
+    for required in [
+        "needs: package",
+        "github.event_name == 'push'",
+        "github.ref_type == 'tag'",
+        "contents: write",
+        "actions/download-artifact@v4",
+        "merge-multiple: true",
+        "scripts/verify_release_assets.sh release-assets",
+        "gh release create",
+        "gh release upload",
+        "--clobber",
+    ] {
+        assert!(
+            release.contains(required),
+            "release job is missing {required}"
+        );
+    }
+}
