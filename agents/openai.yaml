@@ -1,0 +1,6 @@
+interface:
+  display_name: "ImageGen Expert"
+  short_description: "用 gpt-image-2 和 nano-banana 系列模型生成、编辑和合成图片。"
+  default_prompt: "使用 $imagegenexpert 进入问答式专家模式，选择模型、清晰度、比例和输出文件后生成图片。"
+policy:
+  allow_implicit_invocation: true

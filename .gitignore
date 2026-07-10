@@ -1,0 +1,10 @@
+out
+.nuxt
+dist
+.agents
+.claude
+.codex
+outputs
+temp
+target
+docs/superpowers

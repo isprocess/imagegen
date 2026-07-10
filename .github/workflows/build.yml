@@ -1,0 +1,81 @@
+name: package
+
+on:
+  push:
+    branches:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo fmt --check
+      - run: cargo test --locked
+      - run: cargo build --release --locked
+
+  package:
+    name: package-${{ matrix.target }}
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: imagegenexpert-linux-x86_64
+            binary: imagegen
+            archive: imagegenexpert-linux-x86_64.zip
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: imagegenexpert-macos-x86_64
+            binary: imagegen
+            archive: imagegenexpert-macos-x86_64.zip
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: imagegenexpert-macos-aarch64
+            binary: imagegen
+            archive: imagegenexpert-macos-aarch64.zip
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: imagegenexpert-windows-x86_64
+            binary: imagegen.exe
+            archive: imagegenexpert-windows-x86_64.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: Stage skill package
+        shell: bash
+        env:
+          IMAGEGEN_BIN_OVERRIDE: target/${{ matrix.target }}/release/${{ matrix.binary }}
+          IMAGEGEN_OUTPUT_BINARY: ${{ matrix.binary }}
+        run: bash scripts/package_skill.sh dist/imagegenexpert
+
+      - name: Create zip package
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          zip -r "../${{ matrix.archive }}" imagegenexpert
+
+      - name: Create zip package
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path dist/imagegenexpert -DestinationPath ${{ matrix.archive }} -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.archive }}
