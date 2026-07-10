@@ -53,3 +53,17 @@ fn release_workflow_uses_runtime_package_script() {
         "release workflow should not hand-copy development command files into the runtime package"
     );
 }
+
+#[test]
+fn release_workflow_triggers_on_version_tags_not_version_branches() {
+    let workflow = include_str!("../.github/workflows/build.yml");
+
+    assert!(
+        workflow.contains("  push:\n    tags:\n      - \"v*\""),
+        "release workflow should trigger when a v* tag is pushed"
+    );
+    assert!(
+        !workflow.contains("  push:\n    branches:\n      - \"v*\""),
+        "release workflow should not treat version names as branches"
+    );
+}
