@@ -32,31 +32,57 @@ imagegenexpert/
 
 不应包含 `Cargo.toml`、`src/`、`tests/`、`target/`、`temp/`、`docs/` 等开发环境文件。Windows 包内二进制命名可为 `bin/imagegen.exe`。
 
-### GitHub Actions 多平台打包
+### GitHub Releases 自动发布
 
-推送名称匹配 `v*` 的 Git tag 会触发 `package` workflow。发布前应确保 [Cargo.toml](Cargo.toml) 中的版本与 tag 一致，例如 crate 版本 `0.1.0` 对应 tag `v0.1.0`。
+推送名称匹配 `v*` 的 Git tag 会触发 `package` workflow。工作流确认 tag 与 crate 版本一致、完成四个平台构建并验证全部四个包后，才会创建或更新对应的 GitHub Release。`v0.1.1` 是下一个不可变发布 tag；创建后不要移动、复用或删除。
+
+发布前运行：
 
 ```bash
 cargo fmt --check
 cargo test --locked
-git tag -a v0.1.0 -m "Release v0.1.0"
-git push origin v0.1.0
+git tag -a v0.1.1 -m "Release v0.1.1"
+git push origin main
+git push origin v0.1.1
 ```
 
-工作流通过测试后构建并上传四个 ZIP：
+每个 GitHub Release 直接提供以下四个 ZIP：
 
 - `imagegenexpert-linux-x86_64.zip`
 - `imagegenexpert-macos-x86_64.zip`
 - `imagegenexpert-macos-aarch64.zip`
 - `imagegenexpert-windows-x86_64.zip`
 
-在 GitHub 仓库的 **Actions → package → 对应运行 → Artifacts** 下载。当前工作流上传的是 Actions artifacts，不会创建 GitHub Release。
+Linux ZIP 使用 `x86_64-unknown-linux-musl` 构建，并在发布前检查二进制没有动态程序解释器，因此运行时不要求系统提供 glibc。
 
-工作流不会删除或移动 tag；无论成功或失败，tag 都会保留，便于定位源码和排查问题。也可以通过 `workflow_dispatch` 手动运行打包。
+### 直接安装到 Codex 或 Claude Code
 
-修改 workflow 不会重放已有 tag 的 push 事件。需要验证新触发器时，应在包含 workflow 修复的提交上创建新 tag，不要创建同名 `v*` 分支代替 tag。
+从 GitHub Releases 下载与当前平台和架构匹配的一个 ZIP。每个 ZIP 都直接包含顶层 `imagegenexpert/` skill 目录，不需要二次解压，也不需要下载其他平台的包。
 
-把解压后的 `imagegenexpert/` 放到对应 agent 的 skills 目录即可使用。skill 运行时从安装目录定位二进制，不依赖用户项目中的 Cargo、源码或本地二进制。
+Linux x86_64 安装到 Codex：
+
+```bash
+unzip imagegenexpert-linux-x86_64.zip -d ~/.codex/skills/
+```
+
+Linux x86_64 安装到 Claude Code：
+
+```bash
+unzip imagegenexpert-linux-x86_64.zip -d ~/.claude/skills/
+```
+
+macOS 使用相同命令，将 ZIP 文件名替换为对应的 `imagegenexpert-macos-x86_64.zip` 或 `imagegenexpert-macos-aarch64.zip`。
+
+Windows PowerShell 安装到 Codex 或 Claude Code：
+
+```powershell
+Expand-Archive -Path .\imagegenexpert-windows-x86_64.zip -DestinationPath "$HOME\.codex\skills" -Force
+Expand-Archive -Path .\imagegenexpert-windows-x86_64.zip -DestinationPath "$HOME\.claude\skills" -Force
+```
+
+成功或失败都不会让 workflow 删除或移动 tag，tag 会保留用于定位源码和排查。通过 `workflow_dispatch` 手动运行时只构建内部 Actions artifacts，不会创建 GitHub Release。修改 workflow 不会重放已有 tag 的 push 事件；发布新版本必须创建并推送新的不可变 tag。
+
+安装后的 skill 从自身目录定位二进制，不依赖用户项目中的 Cargo、源码或本地二进制。
 
 ## 配置
 

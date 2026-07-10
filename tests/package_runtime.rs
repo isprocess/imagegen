@@ -109,3 +109,20 @@ fn release_workflow_builds_static_linux_and_publishes_direct_assets() {
         );
     }
 }
+
+#[test]
+fn readme_documents_direct_release_installation() {
+    let readme = include_str!("../README.md");
+    for required in [
+        "GitHub Releases",
+        "v0.1.1",
+        "~/.codex/skills/",
+        "~/.claude/skills/",
+        "unzip imagegenexpert-linux-x86_64.zip -d",
+        "不需要二次解压",
+        "workflow_dispatch",
+    ] {
+        assert!(readme.contains(required), "README is missing {required}");
+    }
+    assert!(!readme.contains("Actions → package → 对应运行 → Artifacts"));
+}
