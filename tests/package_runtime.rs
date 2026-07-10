@@ -57,13 +57,15 @@ fn release_workflow_uses_runtime_package_script() {
 #[test]
 fn release_workflow_triggers_on_version_tags_not_version_branches() {
     let workflow = include_str!("../.github/workflows/build.yml");
+    let (_, after_on) = workflow
+        .split_once("\non:\n")
+        .expect("release workflow should define an on section");
+    let (triggers, _) = after_on
+        .split_once("\npermissions:\n")
+        .expect("release workflow should define permissions after its triggers");
 
-    assert!(
-        workflow.contains("  push:\n    tags:\n      - \"v*\""),
-        "release workflow should trigger when a v* tag is pushed"
-    );
-    assert!(
-        !workflow.contains("  push:\n    branches:\n      - \"v*\""),
-        "release workflow should not treat version names as branches"
+    assert_eq!(
+        triggers, "  push:\n    tags:\n      - \"v*\"\n  workflow_dispatch:\n",
+        "release workflow should only trigger automatically for v* tags"
     );
 }
