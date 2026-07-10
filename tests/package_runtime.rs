@@ -27,6 +27,16 @@ fn package_script_stages_only_runtime_skill_files() {
     assert!(out.join("agents/openai.yaml").is_file());
     assert!(out.join("bin/imagegen").is_file());
 
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = fs::metadata(out.join("bin/imagegen"))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_ne!(mode & 0o111, 0, "packaged Unix binary must be executable");
+    }
+
     for dev_path in ["Cargo.toml", "src", "tests", "target", "temp", "docs"] {
         assert!(
             !out.join(dev_path).exists(),
