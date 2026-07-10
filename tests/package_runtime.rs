@@ -88,13 +88,23 @@ fn release_workflow_builds_static_linux_and_publishes_direct_assets() {
     assert!(workflow.contains("sudo apt-get install --yes musl-tools"));
     assert!(workflow.contains("Requesting program interpreter"));
 
-    let (_, release) = workflow
+    let (_, after_permissions) = workflow
+        .split_once("\npermissions:\n")
+        .expect("release workflow should define top-level permissions");
+    let (permissions, _) = after_permissions
+        .split_once("\njobs:\n")
+        .expect("release workflow should define jobs after permissions");
+    assert_eq!(
+        permissions, "  contents: read\n",
+        "workflow-level permissions must remain read-only"
+    );
+
+    let (before_release, release) = workflow
         .split_once("\n  release:\n")
         .expect("release workflow should define a release job");
     for required in [
         "needs: package",
-        "github.event_name == 'push'",
-        "github.ref_type == 'tag'",
+        "if: github.event_name == 'push' && github.ref_type == 'tag'",
         "contents: write",
         "actions/download-artifact@v4",
         "merge-multiple: true",
@@ -108,6 +118,12 @@ fn release_workflow_builds_static_linux_and_publishes_direct_assets() {
             "release job is missing {required}"
         );
     }
+    assert!(!before_release.contains("contents: write"));
+    assert_eq!(
+        workflow.matches("contents: write").count(),
+        1,
+        "write permission must be granted only to the release job"
+    );
 }
 
 #[test]
