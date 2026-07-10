@@ -99,12 +99,25 @@ fn release_workflow_builds_static_linux_and_publishes_direct_assets() {
         "workflow-level permissions must remain read-only"
     );
 
-    let (before_release, release) = workflow
+    let (before_release, after_release_header) = workflow
         .split_once("\n  release:\n")
         .expect("release workflow should define a release job");
+    let release = after_release_header
+        .lines()
+        .take_while(|line| line.is_empty() || line.starts_with("    "))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let release_conditions = release
+        .lines()
+        .filter(|line| line.starts_with("    if: "))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        release_conditions,
+        vec!["    if: github.event_name == 'push' && github.ref_type == 'tag'"],
+        "release job must run only for pushed tags"
+    );
     for required in [
         "needs: package",
-        "if: github.event_name == 'push' && github.ref_type == 'tag'",
         "contents: write",
         "actions/download-artifact@v4",
         "merge-multiple: true",
